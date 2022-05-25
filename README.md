@@ -86,11 +86,14 @@ the key will be the key from the yaml file (e.g. `cfgName1`)
 
 ## Examples included
 
-See: [generator/testdata](generator/testdata) 
+See: [generator/testdata](https://github.com/lorands/tymlate/tree/master/generator/testdata)
 
-Under the [`source`](generator/testdata/source) you will find a source we use to test, 
-and under [`target`](generator/testdata/target) you can see the desired output. 
-The configuration is provided in [`conf.yml`](generator/testdata/conf.yml)
+Under the [`source`](https://github.com/lorands/tymlate/tree/master/generator/testdata/source) you will find a source we use to test,
+and under [`target`](https://github.com/lorands/tymlate/tree/master/generator/testdata/target) you can see the desired output.
+The configuration is provided in [`conf.yml`](https://github.com/lorands/tymlate/tree/master/generator/testdata/conf.yml)
+
+> Note that the testdata folder has been cancelled in this fork because it was breaking the `go install` command.
+> Please refer to upstream for the testdata.
 
 ## Step by step usage
 
