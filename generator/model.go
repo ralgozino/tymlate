@@ -39,12 +39,12 @@ func (tm *TemplateModel) isIncluded(source string) bool {
 	return false
 }
 
-func NewTemplateModel(source string, target string, configPath string, stopIfNotEmpty bool) (error, *TemplateModel) {
+func NewTemplateModel(source string, target string, configPath string, stopIfNotEmpty bool) (*TemplateModel, error) {
 	if len(source) < 1 {
-		return fmt.Errorf("source must be set"), nil
+		return nil, fmt.Errorf("source must be set")
 	}
 	if len(target) < 1 {
-		return fmt.Errorf("target must be set"), nil
+		return nil, fmt.Errorf("target must be set")
 	}
 
 	if stopIfNotEmpty {
@@ -53,7 +53,7 @@ func NewTemplateModel(source string, target string, configPath string, stopIfNot
 				return fmt.Errorf("the target directory is not empty: %s", path)
 			})
 			if err != nil {
-				return err, nil
+				return nil, err
 			}
 		}
 	}
@@ -66,15 +66,15 @@ func NewTemplateModel(source string, target string, configPath string, stopIfNot
 		}
 
 		if err = yaml.Unmarshal(readFile, &model); err != nil {
-			return err, nil
+			return nil, err
 		}
 	}
 
-	return nil, &TemplateModel{
+	return &TemplateModel{
 		SourcePath:           source,
 		TargetPath:           target,
 		ConfigPath:           configPath,
 		Config:               model,
 		StopIfTargetNotEmpty: stopIfNotEmpty,
-	}
+	}, nil
 }

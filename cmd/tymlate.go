@@ -31,7 +31,7 @@ var (
 				}
 			}
 
-			err, templateModel := gen.NewTemplateModel(source, target, confFile, false)
+			templateModel, err := gen.NewTemplateModel(source, target, confFile, false)
 			if err != nil {
 				return err
 			}

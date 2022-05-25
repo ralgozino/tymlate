@@ -82,7 +82,7 @@ func (tm *TemplateModel) Generate() error {
 				if cErr != nil {
 					return cErr
 				}
-				fErr, realTarget := tm.prepareTargetFilename(context, currentTarget)
+				realTarget, fErr := tm.prepareTargetFilename(context, currentTarget)
 				if fErr != nil { //maybe we should fail back to real name instead?
 					return fErr
 				}
@@ -120,7 +120,7 @@ func (tm *TemplateModel) Generate() error {
 	return nil
 }
 
-func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]interface{}, currentTarget string) (error, string) {
+func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]interface{}, currentTarget string) (string, error) {
 	var realTarget string
 	if tm.Config.Templates.ProcessFilename { //try to process filename as template
 		tpl := template.Must(
@@ -129,7 +129,7 @@ func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]int
 		destination := bytes.NewBufferString("")
 
 		if err := tpl.Execute(destination, context); err != nil {
-			return err, ""
+			return "", err
 		}
 		realTarget = destination.String()
 	} else {
@@ -139,7 +139,7 @@ func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]int
 	if strings.HasSuffix(realTarget, suf) {
 		realTarget = realTarget[:len(realTarget)-len(tm.Config.Templates.Suffix)] //cut off extension (.tmpl) from the end
 	}
-	return nil, realTarget
+	return realTarget, nil
 
 }
 
