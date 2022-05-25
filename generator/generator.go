@@ -190,19 +190,24 @@ func readYamlConfig(yamlFilePath string) (map[string]interface{}, error) {
 }
 
 func (c genConfig) processTemplate() error {
-	fmt.Printf("%s --> %s\n", c.source, c.target)
+	var generated_content bytes.Buffer
 
 	tpl := template.Must(
 		template.New(filepath.Base(c.source)).Funcs(funcMap()).ParseFiles(c.source))
 
-	destination, err := os.Create(c.target)
-	if err != nil {
+	if err := tpl.Execute(&generated_content, c.context); err != nil {
 		return err
 	}
-	defer destination.Close()
-
-	if err := tpl.Execute(destination, c.context); err != nil {
-		return err
+	if generated_content.String() != "" {
+		fmt.Printf("%s --> %s\n", c.source, c.target)
+		destination, err := os.Create(c.target)
+		if err != nil {
+			return err
+		}
+		generated_content.WriteTo(destination)
+		defer destination.Close()
+	} else {
+		fmt.Printf("%s --> resulted in an empty file (%d bytes). Skipping.\n", c.source, generated_content.Len())
 	}
 
 	return nil
