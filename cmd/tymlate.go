@@ -2,21 +2,22 @@ package cmd
 
 import (
 	"fmt"
-	gen "github.com/lorands/tymlate/generator"
-	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"strings"
+
+	gen "github.com/ralgozino/tymlate/generator"
+	"github.com/spf13/cobra"
 )
 
 var (
-	source string
-	target string
+	source   string
+	target   string
 	confFile string
-	rootCmd = &cobra.Command{
+	rootCmd  = &cobra.Command{
 		Use:   "tymlate",
-		Short: "tymlate is a directory structure-aware file generator with go templating",
-		Long: `A long long long introduction...`,
+		Short: "tymlate is a directory structure-aware file generator with go templating. Rambo's fork.",
+		Long:  `This is a POC for furyctl's Template Engine in go.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if confFile == "" {
 				//most probably we have .tymlate.yml
@@ -56,7 +57,6 @@ var (
 		},
 	}
 )
-
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "path to template source folder")

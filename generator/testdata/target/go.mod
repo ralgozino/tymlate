@@ -1,6 +1,6 @@
-module github.com/lorands/tymlate
+module github.com/ralgozino/tymlate
 
-go 1.15
+go 1.18
 
 require (
 

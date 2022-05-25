@@ -2,19 +2,20 @@ package gen
 
 import (
 	"fmt"
-	"github.com/lorands/tymlate/config"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"github.com/ralgozino/tymlate/config"
+	"gopkg.in/yaml.v3"
 )
 
 type TemplateModel struct {
-	SourcePath string
-	TargetPath string
-	ConfigPath string
-	Config config.Config
+	SourcePath           string
+	TargetPath           string
+	ConfigPath           string
+	Config               config.Config
 	StopIfTargetNotEmpty bool
 }
 
@@ -73,7 +74,7 @@ func NewTemplateModel(source string, target string, configPath string, stopIfNot
 		SourcePath:           source,
 		TargetPath:           target,
 		ConfigPath:           configPath,
-		Config: 			  model,
+		Config:               model,
 		StopIfTargetNotEmpty: stopIfNotEmpty,
 	}
 }

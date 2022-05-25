@@ -1,7 +1,7 @@
 ---
 data: #direct data
   meta:
-    package: "github.com/lorands/tymlate"
+    package: "github.com/ralgozino/tymlate"
     name: MyEzample
   Dat1: # the name of the map
     key1: "value1"
