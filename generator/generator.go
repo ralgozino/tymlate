@@ -3,31 +3,60 @@ package gen
 import (
 	"bytes"
 	"fmt"
-	"github.com/Masterminds/sprig"
-	"gopkg.in/yaml.v2"
-	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
+
+	"github.com/Masterminds/sprig/v3"
+	"gopkg.in/yaml.v3"
 )
 
+// toYAML / fromYAML taken from Helm source:
+// https://github.com/helm/helm/blob/4ee8db2208923ea1ca1e4cc3792b2a3e088b6e0d/pkg/engine/funcs.go#L72-L98
+
+func toYAML(v interface{}) string {
+	data, err := yaml.Marshal(v)
+	if err != nil {
+		// Swallow errors inside of a template.
+		return ""
+	}
+	return strings.TrimSuffix(string(data), "\n")
+}
+
+func fromYAML(str string) map[string]interface{} {
+	m := map[string]interface{}{}
+
+	if err := yaml.Unmarshal([]byte(str), &m); err != nil {
+		m["Error"] = err.Error()
+	}
+	return m
+}
+
+func funcMap() template.FuncMap {
+	f := sprig.TxtFuncMap()
+	f["toYaml"] = toYAML
+	f["fromYaml"] = fromYAML
+	return f
+}
+
 type genConfig struct {
-	source string
-	target string
+	source  string
+	target  string
 	context map[string]map[string]interface{}
 }
 
 func (tm *TemplateModel) Generate() error {
 	var excludeMode = true
 
-	if len(tm.Config.Templates.Excludes) > 0 && len(tm.Config.Templates.Includes)>0 {
+	if len(tm.Config.Templates.Excludes) > 0 && len(tm.Config.Templates.Includes) > 0 {
 		println("Both excludes and includes are defined in config file, so only includes will be used.")
 		excludeMode = false
 	}
 
-	osErr:=os.MkdirAll(tm.TargetPath, os.ModePerm)
+	osErr := os.MkdirAll(tm.TargetPath, os.ModePerm)
 	if osErr != nil {
 		return osErr
 	}
@@ -40,13 +69,13 @@ func (tm *TemplateModel) Generate() error {
 			skip = !tm.isIncluded(relSource)
 		}
 
-		if ! skip {
+		if !skip {
 			rel, err := filepath.Rel(tm.SourcePath, relSource)
 			if err != nil {
 				return err
 			}
 			currentTarget := filepath.Join(tm.TargetPath, rel)
-			if ! info.IsDir() {
+			if !info.IsDir() {
 
 				tmplSuffix := tm.Config.Templates.Suffix
 				context, cErr := tm.prepareContext()
@@ -95,7 +124,7 @@ func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]int
 	var realTarget string
 	if tm.Config.Templates.ProcessFilename { //try to process filename as template
 		tpl := template.Must(
-			template.New("currentTarget").Funcs(sprig.FuncMap()).Parse(currentTarget))
+			template.New("currentTarget").Funcs(funcMap()).Parse(currentTarget))
 
 		destination := bytes.NewBufferString("")
 
@@ -120,16 +149,15 @@ func (tm *TemplateModel) prepareContext() (map[string]map[string]interface{}, er
 	//context := tm.Config.Data
 	envMap, _ := envToMap()
 	envIMap := make(map[string]interface{})
-	for k,v := range *envMap {
+	for k, v := range *envMap {
 		envIMap[k] = v
 	}
 	context["Env"] = envIMap
-	for k,v := range tm.Config.Data {
+	for k, v := range tm.Config.Data {
 		context[k] = v
 	}
 
-
-	for k,v := range tm.Config.Include {
+	for k, v := range tm.Config.Include {
 		var cPath string
 		if filepath.IsAbs(v) {
 			cPath = v
@@ -146,7 +174,7 @@ func (tm *TemplateModel) prepareContext() (map[string]map[string]interface{}, er
 	return context, nil
 }
 
-func readYamlConfig(yamlFilePath string) (map[string]interface{}, error)  {
+func readYamlConfig(yamlFilePath string) (map[string]interface{}, error) {
 	var body map[string]interface{}
 
 	yamlFile, err := ioutil.ReadFile(yamlFilePath)
@@ -161,12 +189,11 @@ func readYamlConfig(yamlFilePath string) (map[string]interface{}, error)  {
 	return body, nil
 }
 
-
 func (c genConfig) processTemplate() error {
 	fmt.Printf("%s --> %s\n", c.source, c.target)
 
 	tpl := template.Must(
-		template.New(filepath.Base(c.source)).Funcs(sprig.FuncMap()).ParseFiles(c.source))
+		template.New(filepath.Base(c.source)).Funcs(funcMap()).ParseFiles(c.source))
 
 	destination, err := os.Create(c.target)
 	if err != nil {
