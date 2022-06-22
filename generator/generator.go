@@ -61,7 +61,7 @@ func (tm *TemplateModel) Generate() error {
 		return osErr
 	}
 
-	err := filepath.Walk(tm.SourcePath, func(relSource string, info os.FileInfo, err error) error {
+	return filepath.Walk(tm.SourcePath, func(relSource string, info os.FileInfo, err error) error {
 		var skip = false
 		if excludeMode {
 			skip = tm.isExcluded(relSource)
@@ -94,9 +94,8 @@ func (tm *TemplateModel) Generate() error {
 					}
 				}
 
-				if strings.HasSuffix(info.Name(), tmplSuffix) { //apply template
-
-					cErr = genConfig{
+				if strings.HasSuffix(info.Name(), tmplSuffix) {
+					content, cErr := genConfig{
 						source:  relSource,
 						target:  realTarget,
 						context: context,
@@ -104,7 +103,9 @@ func (tm *TemplateModel) Generate() error {
 					if cErr != nil {
 						return cErr
 					}
-				} else { //simple copy
+
+					return copyBufferToFile(content, relSource, realTarget)
+				} else {
 					if _, err := fsCopy(relSource, realTarget); err != nil {
 						return err
 					}
@@ -114,10 +115,6 @@ func (tm *TemplateModel) Generate() error {
 
 		return err
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]interface{}, currentTarget string) (string, error) {
@@ -144,15 +141,9 @@ func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]int
 }
 
 func (tm *TemplateModel) prepareContext() (map[string]map[string]interface{}, error) {
-	//env
 	context := make(map[string]map[string]interface{})
-	//context := tm.Config.Data
-	envMap, _ := envToMap()
-	envIMap := make(map[string]interface{})
-	for k, v := range *envMap {
-		envIMap[k] = v
-	}
-	context["Env"] = envIMap
+	envMap := mapEnvironmentVars()
+	context["Env"] = envMap
 	for k, v := range tm.Config.Data {
 		context[k] = v
 	}
@@ -164,6 +155,7 @@ func (tm *TemplateModel) prepareContext() (map[string]map[string]interface{}, er
 		} else {
 			cPath = filepath.Join(filepath.Dir(tm.ConfigPath), v) //if relative, it is relative to master config
 		}
+
 		if yamlConfig, err := readYamlConfig(cPath); err != nil {
 			return nil, err
 		} else {
@@ -189,25 +181,35 @@ func readYamlConfig(yamlFilePath string) (map[string]interface{}, error) {
 	return body, nil
 }
 
-func (c genConfig) processTemplate() error {
-	var generated_content bytes.Buffer
+func (c genConfig) processTemplate() (bytes.Buffer, error) {
+	var generatedContent bytes.Buffer
 
 	tpl := template.Must(
 		template.New(filepath.Base(c.source)).Funcs(funcMap()).ParseFiles(c.source))
 
-	if err := tpl.Execute(&generated_content, c.context); err != nil {
-		return err
+	if err := tpl.Execute(&generatedContent, c.context); err != nil {
+		return generatedContent, err
 	}
-	if generated_content.String() != "" {
-		fmt.Printf("%s --> %s\n", c.source, c.target)
-		destination, err := os.Create(c.target)
+
+	return generatedContent, nil
+}
+
+func copyBufferToFile(b bytes.Buffer, source, target string) error {
+	if b.String() != "" {
+		fmt.Printf("%s --> %s\n", source, target)
+		destination, err := os.Create(target)
 		if err != nil {
 			return err
 		}
-		generated_content.WriteTo(destination)
+
+		_, err = b.WriteTo(destination)
+		if err != nil {
+			return err
+		}
+
 		defer destination.Close()
 	} else {
-		fmt.Printf("%s --> resulted in an empty file (%d bytes). Skipping.\n", c.source, generated_content.Len())
+		fmt.Printf("%s --> resulted in an empty file (%d bytes). Skipping.\n", source, b.Len())
 	}
 
 	return nil
@@ -238,14 +240,13 @@ func fsCopy(src, dst string) (int64, error) {
 	return nBytes, err
 }
 
-func envToMap() (*map[string]string, error) {
-	envMap := make(map[string]string)
-	var err error
+func mapEnvironmentVars() map[string]interface{} {
+	envMap := make(map[string]interface{})
 
 	for _, v := range os.Environ() {
 		part := strings.Split(v, "=")
 		envMap[part[0]] = part[1]
 	}
 
-	return &envMap, err
+	return envMap
 }
