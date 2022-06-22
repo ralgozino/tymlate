@@ -14,9 +14,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// MERGE
-// REPLACE ENVS WITH VALUES
-
 // toYAML / fromYAML taken from Helm source:
 // https://github.com/helm/helm/blob/4ee8db2208923ea1ca1e4cc3792b2a3e088b6e0d/pkg/engine/funcs.go#L72-L98
 
