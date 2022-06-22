@@ -76,18 +76,25 @@ func (tm *TemplateModel) Generate() error {
 			}
 			currentTarget := filepath.Join(tm.TargetPath, rel)
 			if !info.IsDir() {
-
 				tmplSuffix := tm.Config.Templates.Suffix
+
 				context, cErr := tm.prepareContext()
 				if cErr != nil {
 					return cErr
 				}
+
 				realTarget, fErr := tm.prepareTargetFilename(context, currentTarget)
 				if fErr != nil { //maybe we should fail back to real name instead?
 					return fErr
 				}
 
+				context, err = fillPlaceholdersFromContext(context)
+				if err != nil {
+					return err
+				}
+
 				currentTargetDir := filepath.Dir(realTarget)
+
 				if _, err := os.Stat(currentTargetDir); os.IsNotExist(err) {
 					if err := os.MkdirAll(currentTargetDir, os.ModePerm); err != nil {
 						return err
@@ -164,6 +171,48 @@ func (tm *TemplateModel) prepareContext() (map[string]map[string]interface{}, er
 	}
 
 	return context, nil
+}
+
+func fillPlaceholdersFromContext(
+	context map[string]map[string]interface{},
+) (map[string]map[string]interface{}, error) {
+	for k, c := range context {
+		sanitizeMap(c, c, k)
+	}
+
+	return context, nil
+}
+
+func sanitizeMap(
+	m map[string]interface{},
+	parent map[string]interface{},
+	parentKey string,
+) map[string]interface{} {
+	for k, v := range m {
+		if strings.HasPrefix(k, "env://") {
+			fmt.Printf("changing %+v to env var \n", k)
+			parent[parentKey] = os.Getenv(k[6:])
+			continue
+		}
+
+		vMap, checkMap := v.(map[string]interface{})
+		if checkMap {
+			sanitizeMap(vMap, m, k)
+			continue
+		}
+
+		vArr, checkArr := v.([]interface{})
+		if checkArr {
+			for _, j := range vArr {
+				if j, ok := j.(map[string]interface{}); ok {
+					sanitizeMap(j, m, k)
+				}
+			}
+			continue
+		}
+	}
+
+	return m
 }
 
 func readYamlConfig(yamlFilePath string) (map[string]interface{}, error) {

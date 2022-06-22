@@ -11,6 +11,22 @@ data: #direct data
     key11: "value eleven"
     key2: 23
     key3: false
+  dex:
+    # see dex documentation for more information
+    connectors:
+      - type: github
+        # Required field for connector id.
+        id: github
+        # Required field for connector name.
+        name: GitHub
+        config:
+          # Credentials can be string literals or pulled from the environment.
+          clientID: { env://KFD_AUTH_DEX_CONNECTORS_GITHUB_CLIENT_ID }
+          clientSecret: { env://KFD_AUTH_DEX_CONNECTORS_GITHUB_CLIENT_SECRET }
+          redirectURI: https://login.fury-demo.sighup.io/callback
+          loadAllGroups: false
+          teamNameField: slug
+          useLoginAsID: false
 include:
   cfgName1: subconf/subcfg1.yml
   cfgNameTwo: subconf/subcfg2.yml
