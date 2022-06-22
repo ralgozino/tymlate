@@ -12,7 +12,7 @@ data: #direct data
     key2: 23
     key3: false
 include:
-  cfgName1: subcfg1.yml
+  cfgName1: subconf/subcfg1.yml
   cfgNameTwo: subconf/subcfg2.yml
 templates:
   includes:

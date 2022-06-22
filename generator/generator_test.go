@@ -28,16 +28,25 @@ func TestTemplateModel_Generate(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+
+	err = os.Setenv("TEST_TYMLATE_USER", "Tymlate tester")
+	if err != nil {
+		panic(err)
+	}
+
 	if err := tm.Generate(); err != nil {
 		panic(err)
 	}
 
 	//diff folder with target
 	absExpected := filepath.Join(testData, "target")
-	same, number, _ := dirDiff(absTarget, absExpected)
-	if !same || number != 1 {
+	diff, err := dirDiff(absTarget, absExpected)
+
+	if diff {
 		t.Errorf("The target output does not match the expected one ")
 	}
+
+	err = os.Setenv("TEST_TYMLATE_USER", "")
 
 }
 
@@ -46,7 +55,7 @@ func TestTemplateModel_Generate(t *testing.T) {
 //and an int that denotes how manny files are different by content.
 //As a side effect it prints out the diffs.
 //Note: The sole purpose of this function is to test the generated output.
-func dirDiff(left, right string) (bool, int, error) {
+func dirDiff(left, right string) (bool, error) {
 
 	leftFiles, _ := files(left)
 	rightFiles, _ := files(right)
@@ -54,12 +63,12 @@ func dirDiff(left, right string) (bool, int, error) {
 	numberOfDiffs := 0
 
 	if len(leftFiles) != len(rightFiles) {
-		return false, 0, nil
+		return true, nil
 	}
 
 	for i, leftFile := range leftFiles {
 		if filepath.Base(rightFiles[i]) != filepath.Base(leftFile) { //not found on right side
-			return false, 0, nil
+			return true, nil
 		}
 
 		leftStr, _ := ioutil.ReadFile(leftFile)
@@ -78,12 +87,15 @@ func dirDiff(left, right string) (bool, int, error) {
 			}
 			res, _ := difflib.GetContextDiffString(ddiff)
 			fmt.Print(strings.Replace(res, "\t", " ", -1))
-			//return false, nil
 			numberOfDiffs++
 		}
 	}
 
-	return true, numberOfDiffs, nil
+	if numberOfDiffs > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func files(src string) ([]string, error) {
