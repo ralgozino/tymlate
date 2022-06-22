@@ -2,5 +2,5 @@ package main
 
 func main() {
 
-    println("Hi, {{.Env.USER}}! Your new password for today is: {{ randAlphaNum 27 }}")
+	println("Hi, {{.Env.TEST_TYMLATE_USER}}!")
 }

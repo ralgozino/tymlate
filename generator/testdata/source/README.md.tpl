@@ -1,4 +1,4 @@
-# {{.meta.name}} -- {{.package}}
+# {{.meta.name}} -- {{.meta.package}}
 
 {{.meta.name | upper}} is a TODO
 

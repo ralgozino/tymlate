@@ -1,4 +1,4 @@
-# MyEzample -- 
+# MyEzample -- github.com/ralgozino/tymlate
 
 MYEZAMPLE is a TODO
 
