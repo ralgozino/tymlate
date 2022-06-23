@@ -1,115 +1,141 @@
 package gen
 
 import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
-	"runtime"
-	"sort"
-	"strings"
 	"testing"
 
-	"github.com/pmezard/go-difflib/difflib"
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
-func TestTemplateModel_Generate(t *testing.T) {
-	_, filename, _, _ := runtime.Caller(0)
-	t.Logf("Current test filename: %s", filename)
-
-	testData, _ := filepath.Abs(filepath.Join(filepath.Dir(filename), "testdata"))
-	absSource := filepath.Join(testData, "source")
-	//absTarget := filepath.Join(testData, "target")
-	absTarget, _ := ioutil.TempDir("", "tymlate-test")
-
-	absConfig := filepath.Join(testData, "conf.yml")
-	tm, err := NewTemplateModel(absSource, absTarget, absConfig, false)
-	if err != nil {
-		panic(err)
-	}
-
-	err = os.Setenv("TEST_TYMLATE_USER", "Tymlate tester")
-	if err != nil {
-		panic(err)
-	}
-
-	if err := tm.Generate(); err != nil {
-		panic(err)
-	}
-
-	//diff folder with target
-	absExpected := filepath.Join(testData, "target")
-	diff, err := dirDiff(absTarget, absExpected)
-
-	if diff {
-		t.Errorf("The target output does not match the expected one ")
-	}
-
-	err = os.Setenv("TEST_TYMLATE_USER", "")
-
+type Meta struct {
+	Name map[string]interface{} `yaml:"name,flow"`
 }
 
-//dirDiff compares two folders (left and right)
-//and it returns a bool true if the filenames and structure matches
-//and an int that denotes how manny files are different by content.
-//As a side effect it prints out the diffs.
-//Note: The sole purpose of this function is to test the generated output.
-func dirDiff(left, right string) (bool, error) {
-
-	leftFiles, _ := files(left)
-	rightFiles, _ := files(right)
-
-	numberOfDiffs := 0
-
-	if len(leftFiles) != len(rightFiles) {
-		return true, nil
+func TestTemplateModel_Will_Generate_UserHello(t *testing.T) {
+	conf := map[string]interface{}{
+		"data": map[string]interface{}{
+			"meta": map[string]string{
+				"name": "pippo",
+			},
+		},
 	}
 
-	for i, leftFile := range leftFiles {
-		if filepath.Base(rightFiles[i]) != filepath.Base(leftFile) { //not found on right side
-			return true, nil
-		}
+	template := "A nice day at {{.meta.name | substr 0 3}}"
 
-		leftStr, _ := ioutil.ReadFile(leftFile)
-		rightStr, _ := ioutil.ReadFile(rightFiles[i])
-
-		if !bytes.Equal(leftStr, rightStr) {
-			fmt.Printf("!! Differs... %s  <---> %s\n", leftFile, rightFiles[i])
-			//fmt.Println(leftStr, rightStr))
-			ddiff := difflib.ContextDiff{
-				A:        difflib.SplitLines(string(leftStr)),
-				B:        difflib.SplitLines(string(rightStr)),
-				FromFile: "Left",
-				ToFile:   "Right",
-				Context:  3,
-				Eol:      "\n",
-			}
-			res, _ := difflib.GetContextDiffString(ddiff)
-			fmt.Print(strings.Replace(res, "\t", " ", -1))
-			numberOfDiffs++
-		}
+	confYaml, err := yaml.Marshal(conf)
+	if err != nil {
+		panic(err)
 	}
 
-	if numberOfDiffs > 0 {
-		return true, nil
+	path, err := os.MkdirTemp("", "test")
+
+	err = os.Mkdir(path+"/source", os.ModePerm)
+	err = os.Mkdir(path+"/target", os.ModePerm)
+	err = os.WriteFile(path+"/source/test.md.tpl", []byte(template), os.ModePerm)
+	err = os.WriteFile(path+"/configTest.yaml", confYaml, os.ModePerm)
+
+	defer os.RemoveAll(path)
+
+	tm, err := NewTemplateModel(path+"/source", path+"/target", path+"/configTest.yaml", ".tpl", false)
+
+	err = tm.Generate()
+	assert.NoError(t, err)
+
+	result, err := os.ReadFile(path + "/target/test.md")
+	if err != nil {
+		panic(err)
 	}
 
-	return false, nil
+	expectedRes := "A nice day at pip"
+
+	assert.Equal(t, expectedRes, string(result))
 }
 
-func files(src string) ([]string, error) {
-	var files []string
-
-	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		files = append(files, path)
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
+func TestTemplateModel_Will_Generate_Dynamic_Values_From_Env(t *testing.T) {
+	conf := map[string]interface{}{
+		"data": map[string]interface{}{
+			"meta": Meta{
+				Name: map[string]interface{}{"env://TEST_USER_TYMLATE": ""},
+			},
+		},
 	}
 
-	sort.Strings(files)
-	return files[1:], nil
+	template := "A nice day at {{.meta.name | substr 0 3}}"
+
+	confYaml, err := yaml.Marshal(conf)
+	if err != nil {
+		panic(err)
+	}
+
+	path, err := os.MkdirTemp("", "test")
+
+	err = os.Mkdir(path+"/source", os.ModePerm)
+	err = os.Mkdir(path+"/target", os.ModePerm)
+	err = os.WriteFile(path+"/source/test.md.tpl", []byte(template), os.ModePerm)
+	err = os.WriteFile(path+"/configTest.yaml", confYaml, os.ModePerm)
+
+	defer os.RemoveAll(path)
+
+	tm, err := NewTemplateModel(path+"/source", path+"/target", path+"/configTest.yaml", ".tpl", false)
+
+	os.Setenv("TEST_USER_TYMLATE", "Tymlate")
+
+	defer os.Setenv("TEST_USER_TYMLATE", "")
+
+	err = tm.Generate()
+	assert.NoError(t, err)
+
+	result, err := os.ReadFile(path + "/target/test.md")
+	if err != nil {
+		panic(err)
+	}
+
+	expectedRes := "A nice day at Tym"
+
+	assert.Equal(t, expectedRes, string(result))
+}
+
+func TestTemplateModel_Will_Generate_Dynamic_Values_From_File(t *testing.T) {
+	path, err := os.MkdirTemp("", "test")
+
+	conf := map[string]interface{}{
+		"data": map[string]interface{}{
+			"meta": Meta{
+				Name: map[string]interface{}{"file://" + path + "/tymlate_test_file.txt": ""},
+			},
+		},
+	}
+
+	template := "A nice day at {{.meta.name}}"
+
+	confYaml, err := yaml.Marshal(conf)
+	if err != nil {
+		panic(err)
+	}
+
+	err = os.Mkdir(path+"/source", os.ModePerm)
+	err = os.Mkdir(path+"/target", os.ModePerm)
+	err = os.WriteFile(path+"/source/test.md.tpl", []byte(template), os.ModePerm)
+	err = os.WriteFile(path+"/configTest.yaml", confYaml, os.ModePerm)
+
+	defer os.RemoveAll(path)
+
+	tm, err := NewTemplateModel(path+"/source", path+"/target", path+"/configTest.yaml", ".tpl", false)
+
+	exampleStr := "Tymlate! It's a nice day!"
+
+	os.WriteFile(path+"/tymlate_test_file.txt", []byte(exampleStr), os.ModePerm)
+
+	err = tm.Generate()
+	assert.NoError(t, err)
+
+	result, err := os.ReadFile(path + "/target/test.md")
+	if err != nil {
+		panic(err)
+	}
+
+	expectedRes := "A nice day at Tymlate! It's a nice day!"
+
+	assert.Equal(t, expectedRes, string(result))
 }

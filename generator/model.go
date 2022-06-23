@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/ralgozino/tymlate/config"
 	"gopkg.in/yaml.v3"
+
+	"github.com/ralgozino/tymlate/config"
 )
 
 type TemplateModel struct {
@@ -16,6 +17,7 @@ type TemplateModel struct {
 	TargetPath           string
 	ConfigPath           string
 	Config               config.Config
+	Suffix               string
 	StopIfTargetNotEmpty bool
 }
 
@@ -39,7 +41,7 @@ func (tm *TemplateModel) isIncluded(source string) bool {
 	return false
 }
 
-func NewTemplateModel(source string, target string, configPath string, stopIfNotEmpty bool) (*TemplateModel, error) {
+func NewTemplateModel(source, target, configPath, suffix string, stopIfNotEmpty bool) (*TemplateModel, error) {
 	if len(source) < 1 {
 		return nil, fmt.Errorf("source must be set")
 	}
@@ -75,6 +77,7 @@ func NewTemplateModel(source string, target string, configPath string, stopIfNot
 		TargetPath:           target,
 		ConfigPath:           configPath,
 		Config:               model,
+		Suffix:               suffix,
 		StopIfTargetNotEmpty: stopIfNotEmpty,
 	}, nil
 }

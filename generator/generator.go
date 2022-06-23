@@ -12,6 +12,8 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"gopkg.in/yaml.v3"
+
+	"github.com/ralgozino/tymlate/generator/mapper"
 )
 
 // toYAML / fromYAML taken from Helm source:
@@ -76,7 +78,7 @@ func (tm *TemplateModel) Generate() error {
 			}
 			currentTarget := filepath.Join(tm.TargetPath, rel)
 			if !info.IsDir() {
-				tmplSuffix := tm.Config.Templates.Suffix
+				tmplSuffix := tm.Suffix
 
 				context, cErr := tm.prepareContext()
 				if cErr != nil {
@@ -88,7 +90,9 @@ func (tm *TemplateModel) Generate() error {
 					return fErr
 				}
 
-				context, err = fillPlaceholdersFromContext(context)
+				ctxMapper := mapper.NewMapper(context)
+
+				context, err = ctxMapper.MapDynamicValues()
 				if err != nil {
 					return err
 				}
@@ -139,9 +143,9 @@ func (tm *TemplateModel) prepareTargetFilename(context map[string]map[string]int
 	} else {
 		realTarget = currentTarget
 	}
-	suf := tm.Config.Templates.Suffix
+	suf := tm.Suffix
 	if strings.HasSuffix(realTarget, suf) {
-		realTarget = realTarget[:len(realTarget)-len(tm.Config.Templates.Suffix)] //cut off extension (.tmpl) from the end
+		realTarget = realTarget[:len(realTarget)-len(tm.Suffix)] //cut off extension (.tmpl) from the end
 	}
 	return realTarget, nil
 
@@ -171,48 +175,6 @@ func (tm *TemplateModel) prepareContext() (map[string]map[string]interface{}, er
 	}
 
 	return context, nil
-}
-
-func fillPlaceholdersFromContext(
-	context map[string]map[string]interface{},
-) (map[string]map[string]interface{}, error) {
-	for k, c := range context {
-		sanitizeMap(c, c, k)
-	}
-
-	return context, nil
-}
-
-func sanitizeMap(
-	m map[string]interface{},
-	parent map[string]interface{},
-	parentKey string,
-) map[string]interface{} {
-	for k, v := range m {
-		if strings.HasPrefix(k, "env://") {
-			fmt.Printf("changing %+v to env var \n", k)
-			parent[parentKey] = os.Getenv(k[6:])
-			continue
-		}
-
-		vMap, checkMap := v.(map[string]interface{})
-		if checkMap {
-			sanitizeMap(vMap, m, k)
-			continue
-		}
-
-		vArr, checkArr := v.([]interface{})
-		if checkArr {
-			for _, j := range vArr {
-				if j, ok := j.(map[string]interface{}); ok {
-					sanitizeMap(j, m, k)
-				}
-			}
-			continue
-		}
-	}
-
-	return m
 }
 
 func readYamlConfig(yamlFilePath string) (map[string]interface{}, error) {
